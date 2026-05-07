@@ -278,29 +278,21 @@ function nextQuestion() {
     `;
 
     if (currentQuizMode === 'fill') {
-        const input = document.getElementById('quiz-input');
-        input.focus();
+        document.getElementById('quiz-input').focus();
     }
 
-    // Lắng nghe phím Enter toàn cục khi đang ở trong Quiz
+    // Lắng nghe phím Enter
     const handleEnter = (e) => {
         if (e.key === 'Enter') {
             const nextBtn = document.getElementById('next-btn');
             const submitBtn = document.getElementById('submit-quiz');
-
-            if (currentQuizMode === 'fill') {
-                if (nextBtn && nextBtn.style.display === 'flex') {
-                    // Nếu đang hiện nút "Câu tiếp theo" -> Nhấn Enter để chuyển câu
-                    document.removeEventListener('keydown', handleEnter);
-                    nextQuestion();
-                } else if (submitBtn && submitBtn.style.display !== 'none') {
-                    // Nếu đang hiện nút "Kiểm tra" -> Nhấn Enter để nộp bài
-                    checkAnswer(submitBtn);
-                }
+            if (nextBtn && nextBtn.style.display === 'flex') {
+                nextQuestion();
+            } else if (currentQuizMode === 'fill' && submitBtn && submitBtn.style.display !== 'none') {
+                checkAnswer(submitBtn);
             }
         }
     };
-    // Xóa sự kiện cũ nếu có trước khi thêm mới để tránh trùng lặp
     document.removeEventListener('keydown', window._quizEnterHandler);
     window._quizEnterHandler = handleEnter;
     document.addEventListener('keydown', window._quizEnterHandler);
@@ -309,8 +301,10 @@ function nextQuestion() {
 }
 
 function checkAnswer(btn, selectedId = null, selectedLabel = null) {
-    const feedback = document.getElementById('quiz-feedback');
     const nextBtn = document.getElementById('next-btn');
+    if (nextBtn.style.display === 'flex') return; // Chốt chặn: Nếu đã trả lời rồi thì không làm gì thêm
+
+    const feedback = document.getElementById('quiz-feedback');
     const qHeader = document.querySelector('.quiz-container h2');
     const qLabel = qHeader.getAttribute('data-label');
     
@@ -335,10 +329,9 @@ function checkAnswer(btn, selectedId = null, selectedLabel = null) {
         }
     } else {
         const input = document.getElementById('quiz-input');
-        if (input.disabled) return;
         userAnswer = input.value.trim();
         input.disabled = true;
-        btn.style.display = 'none';
+        if (btn) btn.style.display = 'none';
         if (userAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
             isCorrect = true;
             input.style.borderColor = "#4caf50";
