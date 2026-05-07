@@ -262,7 +262,7 @@ function checkAnswer(btn, selectedId) {
         feedback.style.color = "#f44336";
     }
 
-    nextBtn.style.display = 'block';
+    nextBtn.style.display = 'flex';
 }
 
 // 8. Search Logic

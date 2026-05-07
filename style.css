@@ -321,15 +321,26 @@ header p {
 }
 
 .next-quiz-btn {
-    display: none;
+    display: none; /* Sẽ được đổi thành flex trong JS */
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     margin: 2rem auto 0;
     background: var(--primary);
     color: white;
-    padding: 1rem 2rem;
-    border-radius: 12px;
+    padding: 1rem 2.5rem;
+    border-radius: 50px; /* Làm nút bo tròn hơn cho đẹp */
     border: none;
     font-weight: 700;
+    font-size: 1.1rem;
     cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(45, 90, 39, 0.2);
+}
+
+.next-quiz-btn:hover {
+    background: var(--primary-light);
+    transform: scale(1.05);
 }
 
 /* Animations */
