@@ -2,7 +2,7 @@
  * PharmaFlora - Core Logic
  */
 
-// 1. Dữ liệu mẫu (Bạn có thể thêm đủ 60 cây vào đây)
+// 1. Dữ liệu mẫu
 const plantData = [
     {
         id: 1,
@@ -50,6 +50,11 @@ const plantData = [
 let currentView = 'dashboard';
 let learnedPlants = JSON.parse(localStorage.getItem('learnedPlants')) || [];
 let currentFlashcardIndex = 0;
+let currentQuizType = '';
+let currentQuizMode = 'choice';
+let currentQuestion = null;
+let quizScore = 0;
+let quizHistory = [];
 
 // 3. Selectors
 const mainView = document.getElementById('main-view');
@@ -79,7 +84,8 @@ function setupNavigation() {
 function switchView(view) {
     currentView = view;
     navLinks.forEach(l => l.classList.remove('active'));
-    document.querySelector(`[data-view="${view}"]`).classList.add('active');
+    const activeLink = document.querySelector(`[data-view="${view}"]`);
+    if (activeLink) activeLink.classList.add('active');
 
     switch (view) {
         case 'dashboard': renderDashboard(); break;
@@ -139,13 +145,10 @@ function renderFlashcards() {
             
             <div class="controls" style="display: flex; gap: 1rem;">
                 <button class="option-btn" onclick="prevCard()"><i data-lucide="chevron-left"></i> Trước</button>
-                
-                <button class="option-btn" 
-                    onclick="toggleLearned(${plant.id})" 
+                <button class="option-btn" onclick="toggleLearned(${plant.id})" 
                     style="background: ${isLearned ? '#ffb74d' : 'var(--primary)'}; color: white; min-width: 140px;">
                     ${isLearned ? '<i data-lucide="rotate-ccw"></i> Học lại' : '<i data-lucide="check"></i> Đã thuộc'}
                 </button>
-
                 <button class="option-btn" onclick="nextCard()">Tiếp <i data-lucide="chevron-right"></i></button>
             </div>
         </div>
@@ -154,25 +157,25 @@ function renderFlashcards() {
     document.getElementById('main-flashcard').addEventListener('click', function () {
         this.classList.toggle('is-flipped');
     });
-
     lucide.createIcons();
 }
 
 function toggleLearned(id) {
     if (learnedPlants.includes(id)) {
-        // Bỏ thuộc
         learnedPlants = learnedPlants.filter(item => item !== id);
     } else {
-        // Đánh dấu thuộc
- let currentQuizMode = 'choice'; // 'choice' hoặc 'fill'
-let currentQuestion = null;
-let quizScore = 0;
-let quizHistory = []; // Lưu lại lịch sử các câu đã làm
+        learnedPlants.push(id);
+    }
+    localStorage.setItem('learnedPlants', JSON.stringify(learnedPlants));
+    updateProgress();
+    renderFlashcards();
+}
 
+// 7. Quiz Logic
 function renderQuizMenu() {
     viewTitle.innerText = "Chế độ Kiểm tra";
     viewDesc.innerText = "Chọn loại câu hỏi và chế độ làm bài phía dưới.";
-    quizHistory = []; // Reset lịch sử khi vào menu
+    quizHistory = [];
     
     mainView.innerHTML = `
         <div style="margin-bottom: 2rem; background: var(--secondary); padding: 1rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 2rem;">
@@ -211,18 +214,16 @@ function startQuiz(type) {
     quizScore = 0;
     quizHistory = [];
     viewTitle.innerText = "Đang kiểm tra...";
-    viewDesc.innerText = "Hãy chọn đáp án đúng nhất.";
+    viewDesc.innerText = "Hãy trả lời câu hỏi bên dưới.";
     nextQuestion();
 }
 
 function nextQuestion() {
     const randomPlant = plantData[Math.floor(Math.random() * plantData.length)];
     currentQuestion = randomPlant;
-    
     let questionText = '';
-    let questionLabel = ''; // Lưu lại text câu hỏi thuần để lưu history
+    let questionLabel = '';
 
-    // Xử lý chế độ Mix
     let activeType = currentQuizType;
     if (currentQuizType === 'mixed') {
         const types = ['latin-vi', 'vi-latin', 'family'];
@@ -242,14 +243,12 @@ function nextQuestion() {
 
     let quizHTML = '';
     if (currentQuizMode === 'choice') {
-        // Tạo đáp án trắc nghiệm
         let options = [randomPlant];
         while (options.length < 4) {
             const p = plantData[Math.floor(Math.random() * plantData.length)];
             if (!options.find(opt => opt.id === p.id)) options.push(p);
         }
         options.sort(() => Math.random() - 0.5);
-
         quizHTML = `
             <div class="quiz-options">
                 ${options.map(opt => {
@@ -259,10 +258,9 @@ function nextQuestion() {
             </div>
         `;
     } else {
-        // Tạo ô điền từ
         quizHTML = `
             <div style="margin-bottom: 2rem;">
-                <input type="text" id="quiz-input" placeholder="Nhập câu trả lời tại đây..." 
+                <input type="text" id="quiz-input" placeholder="Nhập câu trả lời..." 
                     style="width: 100%; max-width: 400px; padding: 1.2rem; border-radius: 12px; border: 2px solid var(--secondary); font-size: 1.1rem; text-align: center;">
             </div>
             <button id="submit-quiz" class="next-quiz-btn" style="display: inline-flex; margin-top: 0;" onclick="checkAnswer(this)">Kiểm tra đáp án</button>
@@ -271,7 +269,7 @@ function nextQuestion() {
 
     mainView.innerHTML = `
         <div class="quiz-container" style="text-align: center; position: relative;">
-            <button onclick="showQuizSummary()" style="position: absolute; top: -10px; right: -10px; background: #ffebee; color: #c62828; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 700;">Kết thúc bài tập</button>
+            <button onclick="showQuizSummary()" style="position: absolute; top: -10px; right: -10px; background: #ffebee; color: #c62828; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 700;">Kết thúc</button>
             <h2 style="margin-bottom: 2rem; line-height: 1.4" data-label="${questionLabel}">${questionText}</h2>
             ${quizHTML}
             <div id="quiz-feedback" style="margin-top: 2rem; font-weight: 700; min-height: 1.5rem"></div>
@@ -290,7 +288,6 @@ function nextQuestion() {
         });
         input.focus();
     }
-    
     lucide.createIcons();
 }
 
@@ -333,7 +330,6 @@ function checkAnswer(btn, selectedId = null, selectedLabel = null) {
         }
     }
 
-    // Lưu vào lịch sử
     quizHistory.push({
         question: qLabel,
         userAnswer: userAnswer || "(Bỏ trống)",
@@ -349,28 +345,20 @@ function checkAnswer(btn, selectedId = null, selectedLabel = null) {
         feedback.innerHTML = `Sai rồi. Đáp án đúng là: <br><span style="color: var(--primary); font-size: 1.2rem;">${correctAnswer}</span>`;
         feedback.style.color = "#f44336";
     }
-
     nextBtn.style.display = 'flex';
 }
 
 function showQuizSummary() {
     viewTitle.innerText = "Kết quả bài tập";
-    viewDesc.innerText = `Bạn đã hoàn thành ${quizHistory.length} câu hỏi.`;
-    
-    if (quizHistory.length === 0) {
-        renderQuizMenu();
-        return;
-    }
-
+    viewDesc.innerText = `Hoàn thành ${quizHistory.length} câu.`;
+    if (quizHistory.length === 0) { renderQuizMenu(); return; }
     const accuracy = Math.round((quizScore / quizHistory.length) * 100);
-    
     mainView.innerHTML = `
         <div class="quiz-container" style="max-width: 900px;">
             <div style="text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--secondary); border-radius: 16px;">
                 <h2 style="font-size: 3rem; color: var(--primary)">${accuracy}%</h2>
                 <p style="font-weight: 700; color: var(--text-muted)">Độ chính xác (${quizScore}/${quizHistory.length} câu)</p>
             </div>
-            
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead>
@@ -393,51 +381,25 @@ function showQuizSummary() {
                     </tbody>
                 </table>
             </div>
-            
             <button class="next-quiz-btn" style="display: flex; margin-top: 3rem;" onclick="renderQuizMenu()">Quay lại Menu</button>
         </div>
     `;
-    lucide.createIcons();
-}
-orderColor = "#4caf50";
-        } else {
-            input.style.borderColor = "#f44336";
-        }
-    }
-
-    if (isCorrect) {
-        feedback.innerText = "Chính xác! ✨";
-        feedback.style.color = "#4caf50";
-        quizScore++;
-    } else {
-        feedback.innerHTML = `Sai rồi. Đáp án đúng là: <br><span style="color: var(--primary); font-size: 1.2rem;">${correctAnswer}</span>`;
-        feedback.style.color = "#f44336";
-    }
-
-    nextBtn.style.display = 'flex';
 }
 
 // 8. Search Logic
 function renderSearch() {
     viewTitle.innerText = "Tra cứu dược liệu";
-    viewDesc.innerText = "Tìm kiếm nhanh và nhấn vào cây để xem chi tiết.";
-
+    viewDesc.innerText = "Tìm kiếm nhanh và xem chi tiết.";
     mainView.innerHTML = `
         <div style="margin-bottom: 2rem;">
             <input type="text" id="search-input" placeholder="Nhập tên cây..." 
                 style="width: 100%; padding: 1.2rem; border-radius: 12px; border: 2px solid var(--secondary); font-size: 1.1rem;">
         </div>
-        <div id="search-results" class="dashboard-grid">
-            ${renderPlantCards(plantData)}
-        </div>
+        <div id="search-results" class="dashboard-grid">${renderPlantCards(plantData)}</div>
     `;
-
-    document.getElementById('search-input').addEventListener('input', function (e) {
+    document.getElementById('search-input').addEventListener('input', e => {
         const term = e.target.value.toLowerCase();
-        const filtered = plantData.filter(p =>
-            p.viName.toLowerCase().includes(term) ||
-            p.latinName.toLowerCase().includes(term)
-        );
+        const filtered = plantData.filter(p => p.viName.toLowerCase().includes(term) || p.latinName.toLowerCase().includes(term));
         document.getElementById('search-results').innerHTML = renderPlantCards(filtered);
     });
 }
@@ -447,71 +409,38 @@ function renderPlantCards(data) {
     return data.map(p => `
         <div class="stat-card" style="display: flex; gap: 1rem; align-items: center; cursor: pointer" onclick="showPlantDetail(${p.id})">
             <img src="${p.image}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">
-            <div>
-                <h4 style="font-family: 'Playfair Display', serif">${p.viName}</h4>
-                <p style="font-style: italic; font-size: 0.85rem; color: var(--primary)">${p.latinName}</p>
-            </div>
+            <div><h4 style="margin: 0">${p.viName}</h4></div>
         </div>
     `).join('');
 }
 
-// 9. Modal Detail Logic
+// 9. Modal Logic
 function showPlantDetail(id) {
     const plant = plantData.find(p => p.id === id);
     const modal = document.getElementById('plant-modal');
     const modalBody = document.getElementById('modal-body');
-
     modalBody.innerHTML = `
         <img src="${plant.image}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 16px; margin-bottom: 2rem;">
         <h2 style="font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--primary)">${plant.viName}</h2>
         <p style="font-style: italic; font-size: 1.2rem; margin: 0.5rem 0;">${plant.latinName}</p>
-        <p style="color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.9rem; margin-bottom: 1.5rem;">${plant.family}</p>
-        <div style="border-top: 1px solid #eee; padding-top: 1.5rem;">
-            <h4 style="margin-bottom: 0.5rem;">Công dụng & Đặc điểm:</h4>
+        <p style="color: var(--primary); font-weight: 700; margin-bottom: 1.5rem;">${plant.family}</p>
+        <div style="background: var(--secondary); padding: 1.5rem; border-radius: 12px;">
             <p style="line-height: 1.6; color: var(--text-muted)">${plant.desc}</p>
         </div>
     `;
-
     modal.style.display = 'flex';
 }
 
-function closeModal() {
-    document.getElementById('plant-modal').style.display = 'none';
-}
+function closeModal() { document.getElementById('plant-modal').style.display = 'none'; }
+window.onclick = e => { if (e.target == document.getElementById('plant-modal')) closeModal(); };
 
-// Close modal when clicking outside
-window.onclick = function (event) {
-    const modal = document.getElementById('plant-modal');
-    if (event.target == modal) {
-        closeModal();
-    }
-}
-
-// 10. Utility Functions
+// 10. Utilities
 function updateProgress() {
     const percentage = (learnedPlants.length / plantData.length) * 100;
     progressFill.style.width = `${percentage}%`;
     progressText.innerText = `${learnedPlants.length}/${plantData.length} cây`;
 }
+function nextCard() { currentFlashcardIndex = (currentFlashcardIndex + 1) % plantData.length; renderFlashcards(); }
+function prevCard() { currentFlashcardIndex = (currentFlashcardIndex - 1 + plantData.length) % plantData.length; renderFlashcards(); }
 
-function markAsLearned(id) {
-    if (!learnedPlants.includes(id)) {
-        learnedPlants.push(id);
-        localStorage.setItem('learnedPlants', JSON.stringify(learnedPlants));
-        updateProgress();
-    }
-    nextCard();
-}
-
-function nextCard() {
-    currentFlashcardIndex = (currentFlashcardIndex + 1) % plantData.length;
-    renderFlashcards();
-}
-
-function prevCard() {
-    currentFlashcardIndex = (currentFlashcardIndex - 1 + plantData.length) % plantData.length;
-    renderFlashcards();
-}
-
-// Start App
 init();
