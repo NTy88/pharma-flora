@@ -285,7 +285,17 @@ function nextQuestion() {
     `;
 
     if (currentQuizMode === 'fill') {
-        document.getElementById('quiz-input').addEventListener('keypress', e => { if (e.key === 'Enter') checkAnswer(document.getElementById('submit-quiz')); });
+        document.getElementById('quiz-input').addEventListener('keypress', e => { 
+            if (e.key === 'Enter') {
+                const nextBtn = document.getElementById('next-btn');
+                if (nextBtn.style.display === 'flex') {
+                    nextQuestion(); // Nếu đã xong câu hiện tại, chuyển câu mới
+                } else {
+                    checkAnswer(document.getElementById('submit-quiz')); // Nếu chưa xong, nộp bài
+                }
+            }
+        });
+        document.getElementById('quiz-input').focus(); // Tự động focus vào ô nhập để gõ luôn
     }
     
     lucide.createIcons();
