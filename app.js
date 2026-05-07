@@ -218,7 +218,10 @@ function startQuiz(type) {
     nextQuestion();
 }
 
+let isProcessing = false; // Biến khóa để ngăn chặn duplicate
+
 function nextQuestion() {
+    isProcessing = false; // Reset khóa khi sang câu mới
     const randomPlant = plantData[Math.floor(Math.random() * plantData.length)];
     currentQuestion = randomPlant;
     let questionText = '';
@@ -277,34 +280,32 @@ function nextQuestion() {
         </div>
     `;
 
-    if (currentQuizMode === 'fill') {
-        document.getElementById('quiz-input').focus();
-    }
-
-    // Lắng nghe phím Enter
-    const handleEnter = (e) => {
+    document.removeEventListener('keydown', window._quizEnterHandler);
+    window._quizEnterHandler = (e) => {
         if (e.key === 'Enter') {
             const nextBtn = document.getElementById('next-btn');
             const submitBtn = document.getElementById('submit-quiz');
             if (nextBtn && nextBtn.style.display === 'flex') {
                 nextQuestion();
-            } else if (currentQuizMode === 'fill' && submitBtn && submitBtn.style.display !== 'none') {
-                checkAnswer(submitBtn);
+            } else if (currentQuizMode === 'fill' && !isProcessing) {
+                if (submitBtn && submitBtn.style.display !== 'none') checkAnswer(submitBtn);
             }
         }
     };
-    document.removeEventListener('keydown', window._quizEnterHandler);
-    window._quizEnterHandler = handleEnter;
     document.addEventListener('keydown', window._quizEnterHandler);
-    
+
+    if (currentQuizMode === 'fill') {
+        document.getElementById('quiz-input').focus();
+    }
     lucide.createIcons();
 }
 
 function checkAnswer(btn, selectedId = null, selectedLabel = null) {
-    const nextBtn = document.getElementById('next-btn');
-    if (nextBtn.style.display === 'flex') return; // Chốt chặn: Nếu đã trả lời rồi thì không làm gì thêm
+    if (isProcessing) return; // Nếu đang xử lý thì chặn mọi thao tác tiếp theo
+    isProcessing = true; // Khóa ngay lập tức
 
     const feedback = document.getElementById('quiz-feedback');
+    const nextBtn = document.getElementById('next-btn');
     const qHeader = document.querySelector('.quiz-container h2');
     const qLabel = qHeader.getAttribute('data-label');
     
