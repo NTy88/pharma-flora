@@ -279,15 +279,32 @@ function nextQuestion() {
 
     if (currentQuizMode === 'fill') {
         const input = document.getElementById('quiz-input');
-        input.addEventListener('keypress', e => { 
-            if (e.key === 'Enter') {
-                const nextBtn = document.getElementById('next-btn');
-                if (nextBtn.style.display === 'flex') nextQuestion();
-                else checkAnswer(document.getElementById('submit-quiz'));
-            }
-        });
         input.focus();
     }
+
+    // Lắng nghe phím Enter toàn cục khi đang ở trong Quiz
+    const handleEnter = (e) => {
+        if (e.key === 'Enter') {
+            const nextBtn = document.getElementById('next-btn');
+            const submitBtn = document.getElementById('submit-quiz');
+
+            if (currentQuizMode === 'fill') {
+                if (nextBtn && nextBtn.style.display === 'flex') {
+                    // Nếu đang hiện nút "Câu tiếp theo" -> Nhấn Enter để chuyển câu
+                    document.removeEventListener('keydown', handleEnter);
+                    nextQuestion();
+                } else if (submitBtn && submitBtn.style.display !== 'none') {
+                    // Nếu đang hiện nút "Kiểm tra" -> Nhấn Enter để nộp bài
+                    checkAnswer(submitBtn);
+                }
+            }
+        }
+    };
+    // Xóa sự kiện cũ nếu có trước khi thêm mới để tránh trùng lặp
+    document.removeEventListener('keydown', window._quizEnterHandler);
+    window._quizEnterHandler = handleEnter;
+    document.addEventListener('keydown', window._quizEnterHandler);
+    
     lucide.createIcons();
 }
 

@@ -131,35 +131,35 @@ h1, h2, h3, .logo span {
 /* Main Content Area */
 .content {
     flex: 1;
-    padding: 3rem 4rem;
+    padding: 2rem 3rem; /* Giảm padding */
     overflow-y: auto;
 }
 
 header {
-    margin-bottom: 3rem;
+    margin-bottom: 2rem; /* Giảm margin */
 }
 
 header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 8px;
+    font-size: 2.2rem; /* Thu nhỏ tiêu đề một chút */
+    margin-bottom: 5px;
     color: var(--primary);
 }
 
 header p {
     color: var(--text-muted);
-    font-size: 1.1rem;
+    font-size: 1rem;
 }
 
 /* Dashboard Cards */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
 }
 
 .stat-card {
     background: var(--white);
-    padding: 2rem;
+    padding: 1.5rem;
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     transition: var(--transition);
@@ -175,13 +175,13 @@ header p {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2rem;
+    gap: 1.5rem;
     perspective: 1000px;
 }
 
 .flashcard {
-    width: 400px;
-    height: 550px;
+    width: 380px;
+    height: 480px; /* Giảm chiều cao từ 550px xuống 480px */
     position: relative;
     transform-style: preserve-3d;
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
