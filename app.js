@@ -80,8 +80,8 @@ function switchView(view) {
     currentView = view;
     navLinks.forEach(l => l.classList.remove('active'));
     document.querySelector(`[data-view="${view}"]`).classList.add('active');
-    
-    switch(view) {
+
+    switch (view) {
         case 'dashboard': renderDashboard(); break;
         case 'flashcards': renderFlashcards(); break;
         case 'quiz': renderQuizMenu(); break;
@@ -93,7 +93,7 @@ function switchView(view) {
 function renderDashboard() {
     viewTitle.innerText = "Chào buổi sáng!";
     viewDesc.innerText = "Hãy bắt đầu hành trình chinh phục 60 loài cây dược liệu nào.";
-    
+
     mainView.innerHTML = `
         <div class="dashboard-grid">
             <div class="stat-card">
@@ -116,10 +116,10 @@ function renderDashboard() {
 function renderFlashcards() {
     viewTitle.innerText = "Học qua Flashcards";
     viewDesc.innerText = "Nhấn vào thẻ để lật xem tên khoa học và thông tin chi tiết.";
-    
+
     const plant = plantData[currentFlashcardIndex];
     const isLearned = learnedPlants.includes(plant.id);
-    
+
     mainView.innerHTML = `
         <div class="flashcard-container">
             <div class="flashcard" id="main-flashcard">
@@ -151,10 +151,10 @@ function renderFlashcards() {
         </div>
     `;
 
-    document.getElementById('main-flashcard').addEventListener('click', function() {
+    document.getElementById('main-flashcard').addEventListener('click', function () {
         this.classList.toggle('is-flipped');
     });
-    
+
     lucide.createIcons();
 }
 
@@ -171,19 +171,35 @@ function toggleLearned(id) {
     renderFlashcards(); // Cập nhật lại giao diện ngay lập tức
 }
 
+// 7. Quiz Logic
+let currentQuizType = '';
+let currentQuizMode = 'choice'; // 'choice' hoặc 'fill'
+let currentQuestion = null;
+let quizScore = 0;
+
 function renderQuizMenu() {
     viewTitle.innerText = "Chế độ Kiểm tra";
-    viewDesc.innerText = "Chọn một thử thách để bắt đầu rèn luyện trí nhớ.";
+    viewDesc.innerText = "Chọn loại câu hỏi và chế độ làm bài phía dưới.";
     
     mainView.innerHTML = `
+        <div style="margin-bottom: 2rem; background: var(--secondary); padding: 1rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 2rem;">
+            <span style="font-weight: 700; color: var(--primary)">CHẾ ĐỘ LÀM BÀI:</span>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+                <input type="radio" name="quiz-mode" value="choice" ${currentQuizMode === 'choice' ? 'checked' : ''} onchange="currentQuizMode = this.value"> Trắc nghiệm
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+                <input type="radio" name="quiz-mode" value="fill" ${currentQuizMode === 'fill' ? 'checked' : ''} onchange="currentQuizMode = this.value"> Tự luận (Điền từ)
+            </label>
+        </div>
+
         <div class="dashboard-grid">
             <div class="stat-card" onclick="startQuiz('latin-vi')">
                 <h3>Latin ➔ Việt</h3>
-                <p style="margin-top: 10px; color: var(--text-muted)">Cho tên khoa học, chọn tên tiếng Việt đúng.</p>
+                <p style="margin-top: 10px; color: var(--text-muted)">Cho tên khoa học, chọn/điền tên tiếng Việt.</p>
             </div>
             <div class="stat-card" onclick="startQuiz('vi-latin')">
                 <h3>Việt ➔ Latin</h3>
-                <p style="margin-top: 10px; color: var(--text-muted)">Cho tên tiếng Việt, chọn tên khoa học đúng.</p>
+                <p style="margin-top: 10px; color: var(--text-muted)">Cho tên tiếng Việt, chọn/điền tên khoa học.</p>
             </div>
             <div class="stat-card" onclick="startQuiz('family')">
                 <h3>Thử thách Họ</h3>
@@ -191,16 +207,11 @@ function renderQuizMenu() {
             </div>
             <div class="stat-card" onclick="startQuiz('mixed')" style="border: 2px solid var(--primary)">
                 <h3 style="color: var(--primary)">🔥 Chế độ Mix</h3>
-                <p style="margin-top: 10px; color: var(--text-muted)">Tổng hợp ngẫu nhiên cả 3 loại câu hỏi trên.</p>
+                <p style="margin-top: 10px; color: var(--text-muted)">Trộn ngẫu nhiên các loại câu hỏi.</p>
             </div>
         </div>
     `;
 }
-
-// 7. Quiz Logic
-let currentQuizType = '';
-let currentQuestion = null;
-let quizScore = 0;
 
 function startQuiz(type) {
     currentQuizType = type;
@@ -214,18 +225,8 @@ function nextQuestion() {
     const randomPlant = plantData[Math.floor(Math.random() * plantData.length)];
     currentQuestion = randomPlant;
     
-    // Tạo danh sách đáp án nhiễu
-    let options = [randomPlant];
-    while (options.length < 4) {
-        const p = plantData[Math.floor(Math.random() * plantData.length)];
-        if (!options.find(opt => opt.id === p.id)) {
-            options.push(p);
-        }
-    }
-    options.sort(() => Math.random() - 0.5);
-
     let questionText = '';
-    let getOptionLabel = (p) => '';
+    let correctAnswer = '';
 
     // Xử lý chế độ Mix
     let activeType = currentQuizType;
@@ -236,50 +237,103 @@ function nextQuestion() {
 
     if (activeType === 'latin-vi') {
         questionText = `Tên tiếng Việt của dược liệu <br><span style="font-style: italic; font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--primary); display: block; margin: 10px 0;">${randomPlant.latinName}</span> là gì?`;
-        getOptionLabel = (p) => p.viName;
+        correctAnswer = randomPlant.viName;
     } else if (activeType === 'vi-latin') {
         questionText = `Tên khoa học của dược liệu <br><span style="font-weight: 700; font-size: 2.2rem; color: var(--text-dark); display: block; margin: 10px 0;">${randomPlant.viName}</span> là gì?`;
-        getOptionLabel = (p) => p.latinName;
+        correctAnswer = randomPlant.latinName;
     } else if (activeType === 'family') {
         questionText = `Dược liệu <span style="font-weight: 700; color: var(--primary)">${randomPlant.viName}</span> <br>thuộc <span style="text-decoration: underline; color: var(--primary-light)">Họ thực vật</span> nào?`;
-        getOptionLabel = (p) => p.family;
+        correctAnswer = randomPlant.family;
+    }
+
+    let quizHTML = '';
+    if (currentQuizMode === 'choice') {
+        // Tạo đáp án trắc nghiệm
+        let options = [randomPlant];
+        while (options.length < 4) {
+            const p = plantData[Math.floor(Math.random() * plantData.length)];
+            if (!options.find(opt => opt.id === p.id)) options.push(p);
+        }
+        options.sort(() => Math.random() - 0.5);
+
+        quizHTML = `
+            <div class="quiz-options">
+                ${options.map(opt => {
+                    let label = activeType === 'latin-vi' ? opt.viName : (activeType === 'vi-latin' ? opt.latinName : opt.family);
+                    return `<button class="option-btn" onclick="checkAnswer(this, ${opt.id}, '${label}')">${label}</button>`;
+                }).join('')}
+            </div>
+        `;
+    } else {
+        // Tạo ô điền từ
+        quizHTML = `
+            <div style="margin-bottom: 2rem;">
+                <input type="text" id="quiz-input" placeholder="Nhập câu trả lời tại đây..." 
+                    style="width: 100%; max-width: 400px; padding: 1.2rem; border-radius: 12px; border: 2px solid var(--secondary); font-size: 1.1rem; text-align: center;">
+            </div>
+            <button id="submit-quiz" class="next-quiz-btn" style="display: inline-flex; margin-top: 0;" onclick="checkAnswer(this)">Kiểm tra đáp án</button>
+        `;
     }
 
     mainView.innerHTML = `
         <div class="quiz-container" style="text-align: center">
             <h2 style="margin-bottom: 2rem; line-height: 1.4">${questionText}</h2>
-            <div class="quiz-options">
-                ${options.map(opt => `
-                    <button class="option-btn" onclick="checkAnswer(this, ${opt.id})">${getOptionLabel(opt)}</button>
-                `).join('')}
-            </div>
-            <div id="quiz-feedback" style="margin-top: 2rem; font-weight: 700; height: 1.5rem"></div>
+            ${quizHTML}
+            <div id="quiz-feedback" style="margin-top: 2rem; font-weight: 700; min-height: 1.5rem"></div>
             <button id="next-btn" class="next-quiz-btn" onclick="nextQuestion()">Câu tiếp theo <i data-lucide="arrow-right"></i></button>
         </div>
     `;
+
+    if (currentQuizMode === 'fill') {
+        document.getElementById('quiz-input').addEventListener('keypress', e => { if (e.key === 'Enter') checkAnswer(document.getElementById('submit-quiz')); });
+    }
+    
     lucide.createIcons();
 }
 
-function checkAnswer(btn, selectedId) {
+function checkAnswer(btn, selectedId = null, selectedLabel = null) {
     const feedback = document.getElementById('quiz-feedback');
     const nextBtn = document.getElementById('next-btn');
-    const allBtns = document.querySelectorAll('.option-btn');
-    allBtns.forEach(b => b.style.pointerEvents = 'none');
+    const qText = document.querySelector('.quiz-container h2').innerText;
+    
+    let isCorrect = false;
+    let correctAnswer = '';
+    
+    if (qText.includes('tiếng Việt')) correctAnswer = currentQuestion.viName;
+    else if (qText.includes('khoa học')) correctAnswer = currentQuestion.latinName;
+    else correctAnswer = currentQuestion.family;
 
-    if (selectedId === currentQuestion.id) {
-        btn.classList.add('correct');
+    if (currentQuizMode === 'choice') {
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.style.pointerEvents = 'none');
+        if (selectedId === currentQuestion.id) {
+            btn.classList.add('correct');
+            isCorrect = true;
+        } else {
+            btn.classList.add('wrong');
+            // Tìm và highlight nút đúng
+            allBtns.forEach(b => { if(b.innerText === correctAnswer) b.classList.add('correct'); });
+        }
+    } else {
+        const input = document.getElementById('quiz-input');
+        if (input.disabled) return;
+        const userAnswer = input.value.trim().toLowerCase();
+        input.disabled = true;
+        btn.style.display = 'none';
+        if (userAnswer === correctAnswer.toLowerCase()) {
+            isCorrect = true;
+            input.style.borderColor = "#4caf50";
+        } else {
+            input.style.borderColor = "#f44336";
+        }
+    }
+
+    if (isCorrect) {
         feedback.innerText = "Chính xác! ✨";
         feedback.style.color = "#4caf50";
         quizScore++;
     } else {
-        btn.classList.add('wrong');
-        feedback.innerText = `Sai rồi. Đáp án đúng là: ${
-            btn.parentElement.previousElementSibling.innerText.includes('Họ') ? currentQuestion.family : 
-            (currentQuestion.viName === btn.innerText ? currentQuestion.latinName : currentQuestion.viName)
-        }`;
-        // Logic tìm đáp án đúng để hiển thị lại cho chuẩn
-        const correctLabel = Array.from(allBtns).find(b => b.getAttribute('onclick').includes(currentQuestion.id)).innerText;
-        feedback.innerText = `Sai rồi. Đáp án đúng là: ${correctLabel}`;
+        feedback.innerHTML = `Sai rồi. Đáp án đúng là: <br><span style="color: var(--primary); font-size: 1.2rem;">${correctAnswer}</span>`;
         feedback.style.color = "#f44336";
     }
 
@@ -290,7 +344,7 @@ function checkAnswer(btn, selectedId) {
 function renderSearch() {
     viewTitle.innerText = "Tra cứu dược liệu";
     viewDesc.innerText = "Tìm kiếm nhanh và nhấn vào cây để xem chi tiết.";
-    
+
     mainView.innerHTML = `
         <div style="margin-bottom: 2rem;">
             <input type="text" id="search-input" placeholder="Nhập tên cây..." 
@@ -301,10 +355,10 @@ function renderSearch() {
         </div>
     `;
 
-    document.getElementById('search-input').addEventListener('input', function(e) {
+    document.getElementById('search-input').addEventListener('input', function (e) {
         const term = e.target.value.toLowerCase();
-        const filtered = plantData.filter(p => 
-            p.viName.toLowerCase().includes(term) || 
+        const filtered = plantData.filter(p =>
+            p.viName.toLowerCase().includes(term) ||
             p.latinName.toLowerCase().includes(term)
         );
         document.getElementById('search-results').innerHTML = renderPlantCards(filtered);
@@ -329,7 +383,7 @@ function showPlantDetail(id) {
     const plant = plantData.find(p => p.id === id);
     const modal = document.getElementById('plant-modal');
     const modalBody = document.getElementById('modal-body');
-    
+
     modalBody.innerHTML = `
         <img src="${plant.image}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 16px; margin-bottom: 2rem;">
         <h2 style="font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--primary)">${plant.viName}</h2>
@@ -340,7 +394,7 @@ function showPlantDetail(id) {
             <p style="line-height: 1.6; color: var(--text-muted)">${plant.desc}</p>
         </div>
     `;
-    
+
     modal.style.display = 'flex';
 }
 
@@ -349,7 +403,7 @@ function closeModal() {
 }
 
 // Close modal when clicking outside
-window.onclick = function(event) {
+window.onclick = function (event) {
     const modal = document.getElementById('plant-modal');
     if (event.target == modal) {
         closeModal();
