@@ -164,22 +164,15 @@ function toggleLearned(id) {
         learnedPlants = learnedPlants.filter(item => item !== id);
     } else {
         // Đánh dấu thuộc
-        learnedPlants.push(id);
-    }
-    localStorage.setItem('learnedPlants', JSON.stringify(learnedPlants));
-    updateProgress();
-    renderFlashcards(); // Cập nhật lại giao diện ngay lập tức
-}
-
-// 7. Quiz Logic
-let currentQuizType = '';
-let currentQuizMode = 'choice'; // 'choice' hoặc 'fill'
+ let currentQuizMode = 'choice'; // 'choice' hoặc 'fill'
 let currentQuestion = null;
 let quizScore = 0;
+let quizHistory = []; // Lưu lại lịch sử các câu đã làm
 
 function renderQuizMenu() {
     viewTitle.innerText = "Chế độ Kiểm tra";
     viewDesc.innerText = "Chọn loại câu hỏi và chế độ làm bài phía dưới.";
+    quizHistory = []; // Reset lịch sử khi vào menu
     
     mainView.innerHTML = `
         <div style="margin-bottom: 2rem; background: var(--secondary); padding: 1rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 2rem;">
@@ -216,6 +209,7 @@ function renderQuizMenu() {
 function startQuiz(type) {
     currentQuizType = type;
     quizScore = 0;
+    quizHistory = [];
     viewTitle.innerText = "Đang kiểm tra...";
     viewDesc.innerText = "Hãy chọn đáp án đúng nhất.";
     nextQuestion();
@@ -226,7 +220,7 @@ function nextQuestion() {
     currentQuestion = randomPlant;
     
     let questionText = '';
-    let correctAnswer = '';
+    let questionLabel = ''; // Lưu lại text câu hỏi thuần để lưu history
 
     // Xử lý chế độ Mix
     let activeType = currentQuizType;
@@ -237,13 +231,13 @@ function nextQuestion() {
 
     if (activeType === 'latin-vi') {
         questionText = `Tên tiếng Việt của dược liệu <br><span style="font-style: italic; font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--primary); display: block; margin: 10px 0;">${randomPlant.latinName}</span> là gì?`;
-        correctAnswer = randomPlant.viName;
+        questionLabel = `Tên tiếng Việt của ${randomPlant.latinName}`;
     } else if (activeType === 'vi-latin') {
         questionText = `Tên khoa học của dược liệu <br><span style="font-weight: 700; font-size: 2.2rem; color: var(--text-dark); display: block; margin: 10px 0;">${randomPlant.viName}</span> là gì?`;
-        correctAnswer = randomPlant.latinName;
+        questionLabel = `Tên khoa học của ${randomPlant.viName}`;
     } else if (activeType === 'family') {
         questionText = `Dược liệu <span style="font-weight: 700; color: var(--primary)">${randomPlant.viName}</span> <br>thuộc <span style="text-decoration: underline; color: var(--primary-light)">Họ thực vật</span> nào?`;
-        correctAnswer = randomPlant.family;
+        questionLabel = `Họ thực vật của ${randomPlant.viName}`;
     }
 
     let quizHTML = '';
@@ -276,8 +270,9 @@ function nextQuestion() {
     }
 
     mainView.innerHTML = `
-        <div class="quiz-container" style="text-align: center">
-            <h2 style="margin-bottom: 2rem; line-height: 1.4">${questionText}</h2>
+        <div class="quiz-container" style="text-align: center; position: relative;">
+            <button onclick="showQuizSummary()" style="position: absolute; top: -10px; right: -10px; background: #ffebee; color: #c62828; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 700;">Kết thúc bài tập</button>
+            <h2 style="margin-bottom: 2rem; line-height: 1.4" data-label="${questionLabel}">${questionText}</h2>
             ${quizHTML}
             <div id="quiz-feedback" style="margin-top: 2rem; font-weight: 700; min-height: 1.5rem"></div>
             <button id="next-btn" class="next-quiz-btn" onclick="nextQuestion()">Câu tiếp theo <i data-lucide="arrow-right"></i></button>
@@ -285,17 +280,15 @@ function nextQuestion() {
     `;
 
     if (currentQuizMode === 'fill') {
-        document.getElementById('quiz-input').addEventListener('keypress', e => { 
+        const input = document.getElementById('quiz-input');
+        input.addEventListener('keypress', e => { 
             if (e.key === 'Enter') {
                 const nextBtn = document.getElementById('next-btn');
-                if (nextBtn.style.display === 'flex') {
-                    nextQuestion(); // Nếu đã xong câu hiện tại, chuyển câu mới
-                } else {
-                    checkAnswer(document.getElementById('submit-quiz')); // Nếu chưa xong, nộp bài
-                }
+                if (nextBtn.style.display === 'flex') nextQuestion();
+                else checkAnswer(document.getElementById('submit-quiz'));
             }
         });
-        document.getElementById('quiz-input').focus(); // Tự động focus vào ô nhập để gõ luôn
+        input.focus();
     }
     
     lucide.createIcons();
@@ -304,35 +297,109 @@ function nextQuestion() {
 function checkAnswer(btn, selectedId = null, selectedLabel = null) {
     const feedback = document.getElementById('quiz-feedback');
     const nextBtn = document.getElementById('next-btn');
-    const qText = document.querySelector('.quiz-container h2').innerText;
+    const qHeader = document.querySelector('.quiz-container h2');
+    const qLabel = qHeader.getAttribute('data-label');
     
     let isCorrect = false;
     let correctAnswer = '';
+    let userAnswer = '';
     
-    if (qText.includes('tiếng Việt')) correctAnswer = currentQuestion.viName;
-    else if (qText.includes('khoa học')) correctAnswer = currentQuestion.latinName;
+    if (qLabel.includes('tiếng Việt')) correctAnswer = currentQuestion.viName;
+    else if (qLabel.includes('khoa học')) correctAnswer = currentQuestion.latinName;
     else correctAnswer = currentQuestion.family;
 
     if (currentQuizMode === 'choice') {
         const allBtns = document.querySelectorAll('.option-btn');
         allBtns.forEach(b => b.style.pointerEvents = 'none');
+        userAnswer = selectedLabel;
         if (selectedId === currentQuestion.id) {
             btn.classList.add('correct');
             isCorrect = true;
         } else {
             btn.classList.add('wrong');
-            // Tìm và highlight nút đúng
             allBtns.forEach(b => { if(b.innerText === correctAnswer) b.classList.add('correct'); });
         }
     } else {
         const input = document.getElementById('quiz-input');
         if (input.disabled) return;
-        const userAnswer = input.value.trim().toLowerCase();
+        userAnswer = input.value.trim();
         input.disabled = true;
         btn.style.display = 'none';
-        if (userAnswer === correctAnswer.toLowerCase()) {
+        if (userAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
             isCorrect = true;
             input.style.borderColor = "#4caf50";
+        } else {
+            input.style.borderColor = "#f44336";
+        }
+    }
+
+    // Lưu vào lịch sử
+    quizHistory.push({
+        question: qLabel,
+        userAnswer: userAnswer || "(Bỏ trống)",
+        correctAnswer: correctAnswer,
+        isCorrect: isCorrect
+    });
+
+    if (isCorrect) {
+        feedback.innerText = "Chính xác! ✨";
+        feedback.style.color = "#4caf50";
+        quizScore++;
+    } else {
+        feedback.innerHTML = `Sai rồi. Đáp án đúng là: <br><span style="color: var(--primary); font-size: 1.2rem;">${correctAnswer}</span>`;
+        feedback.style.color = "#f44336";
+    }
+
+    nextBtn.style.display = 'flex';
+}
+
+function showQuizSummary() {
+    viewTitle.innerText = "Kết quả bài tập";
+    viewDesc.innerText = `Bạn đã hoàn thành ${quizHistory.length} câu hỏi.`;
+    
+    if (quizHistory.length === 0) {
+        renderQuizMenu();
+        return;
+    }
+
+    const accuracy = Math.round((quizScore / quizHistory.length) * 100);
+    
+    mainView.innerHTML = `
+        <div class="quiz-container" style="max-width: 900px;">
+            <div style="text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--secondary); border-radius: 16px;">
+                <h2 style="font-size: 3rem; color: var(--primary)">${accuracy}%</h2>
+                <p style="font-weight: 700; color: var(--text-muted)">Độ chính xác (${quizScore}/${quizHistory.length} câu)</p>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--secondary)">
+                            <th style="padding: 1rem;">Câu hỏi</th>
+                            <th style="padding: 1rem;">Bạn trả lời</th>
+                            <th style="padding: 1rem;">Đáp án đúng</th>
+                            <th style="padding: 1rem; text-align: center;">Kết quả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${quizHistory.map(item => `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 1rem; font-size: 0.9rem;">${item.question}</td>
+                                <td style="padding: 1rem; color: ${item.isCorrect ? '#4caf50' : '#f44336'}; font-weight: 600;">${item.userAnswer}</td>
+                                <td style="padding: 1rem; font-weight: 600; color: var(--primary)">${item.isCorrect ? '-' : item.correctAnswer}</td>
+                                <td style="padding: 1rem; text-align: center;">${item.isCorrect ? '✅' : '❌'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <button class="next-quiz-btn" style="display: flex; margin-top: 3rem;" onclick="renderQuizMenu()">Quay lại Menu</button>
+        </div>
+    `;
+    lucide.createIcons();
+}
+orderColor = "#4caf50";
         } else {
             input.style.borderColor = "#f44336";
         }
