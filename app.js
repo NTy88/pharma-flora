@@ -168,6 +168,10 @@ function renderQuizMenu() {
                 <h3>Thử thách Họ</h3>
                 <p style="margin-top: 10px; color: var(--text-muted)">Xác định họ thực vật của dược liệu.</p>
             </div>
+            <div class="stat-card" onclick="startQuiz('mixed')" style="border: 2px solid var(--primary)">
+                <h3 style="color: var(--primary)">🔥 Chế độ Mix</h3>
+                <p style="margin-top: 10px; color: var(--text-muted)">Tổng hợp ngẫu nhiên cả 3 loại câu hỏi trên.</p>
+            </div>
         </div>
     `;
 }
@@ -202,32 +206,42 @@ function nextQuestion() {
     let questionText = '';
     let getOptionLabel = (p) => '';
 
-    if (currentQuizType === 'latin-vi') {
+    // Xử lý chế độ Mix
+    let activeType = currentQuizType;
+    if (currentQuizType === 'mixed') {
+        const types = ['latin-vi', 'vi-latin', 'family'];
+        activeType = types[Math.floor(Math.random() * types.length)];
+    }
+
+    if (activeType === 'latin-vi') {
         questionText = `Tên tiếng Việt của <br><b style="font-style: italic; color: var(--primary)">${randomPlant.latinName}</b> là gì?`;
         getOptionLabel = (p) => p.viName;
-    } else if (currentQuizType === 'vi-latin') {
+    } else if (activeType === 'vi-latin') {
         questionText = `Tên khoa học của <br><b>${randomPlant.viName}</b> là gì?`;
         getOptionLabel = (p) => p.latinName;
-    } else if (currentQuizType === 'family') {
+    } else if (activeType === 'family') {
         questionText = `Dược liệu <b>${randomPlant.viName}</b> thuộc Họ nào?`;
         getOptionLabel = (p) => p.family;
     }
 
     mainView.innerHTML = `
-        <div class="quiz-container">
+        <div class="quiz-container" style="text-align: center">
             <h2 style="margin-bottom: 2rem; line-height: 1.4">${questionText}</h2>
             <div class="quiz-options">
                 ${options.map(opt => `
                     <button class="option-btn" onclick="checkAnswer(this, ${opt.id})">${getOptionLabel(opt)}</button>
                 `).join('')}
             </div>
-            <div id="quiz-feedback" style="margin-top: 2rem; font-weight: 700; text-align: center; height: 1.5rem"></div>
+            <div id="quiz-feedback" style="margin-top: 2rem; font-weight: 700; height: 1.5rem"></div>
+            <button id="next-btn" class="next-quiz-btn" onclick="nextQuestion()">Câu tiếp theo <i data-lucide="arrow-right"></i></button>
         </div>
     `;
+    lucide.createIcons();
 }
 
 function checkAnswer(btn, selectedId) {
     const feedback = document.getElementById('quiz-feedback');
+    const nextBtn = document.getElementById('next-btn');
     const allBtns = document.querySelectorAll('.option-btn');
     allBtns.forEach(b => b.style.pointerEvents = 'none');
 
@@ -239,21 +253,22 @@ function checkAnswer(btn, selectedId) {
     } else {
         btn.classList.add('wrong');
         feedback.innerText = `Sai rồi. Đáp án đúng là: ${
-            currentQuizType === 'latin-vi' ? currentQuestion.viName : 
-            currentQuizType === 'vi-latin' ? currentQuestion.latinName : currentQuestion.family
+            btn.parentElement.previousElementSibling.innerText.includes('Họ') ? currentQuestion.family : 
+            (currentQuestion.viName === btn.innerText ? currentQuestion.latinName : currentQuestion.viName)
         }`;
+        // Logic tìm đáp án đúng để hiển thị lại cho chuẩn
+        const correctLabel = Array.from(allBtns).find(b => b.getAttribute('onclick').includes(currentQuestion.id)).innerText;
+        feedback.innerText = `Sai rồi. Đáp án đúng là: ${correctLabel}`;
         feedback.style.color = "#f44336";
     }
 
-    setTimeout(() => {
-        nextQuestion();
-    }, 2000);
+    nextBtn.style.display = 'block';
 }
 
 // 8. Search Logic
 function renderSearch() {
     viewTitle.innerText = "Tra cứu dược liệu";
-    viewDesc.innerText = "Tìm kiếm nhanh theo tên tiếng Việt hoặc tên Latin.";
+    viewDesc.innerText = "Tìm kiếm nhanh và nhấn vào cây để xem chi tiết.";
     
     mainView.innerHTML = `
         <div style="margin-bottom: 2rem;">
@@ -278,7 +293,7 @@ function renderSearch() {
 function renderPlantCards(data) {
     if (data.length === 0) return "<p>Không tìm thấy kết quả nào.</p>";
     return data.map(p => `
-        <div class="stat-card" style="display: flex; gap: 1rem; align-items: center;">
+        <div class="stat-card" style="display: flex; gap: 1rem; align-items: center; cursor: pointer" onclick="showPlantDetail(${p.id})">
             <img src="${p.image}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">
             <div>
                 <h4 style="font-family: 'Playfair Display', serif">${p.viName}</h4>
@@ -288,7 +303,39 @@ function renderPlantCards(data) {
     `).join('');
 }
 
-// 9. Utility Functions (keep existing ones)
+// 9. Modal Detail Logic
+function showPlantDetail(id) {
+    const plant = plantData.find(p => p.id === id);
+    const modal = document.getElementById('plant-modal');
+    const modalBody = document.getElementById('modal-body');
+    
+    modalBody.innerHTML = `
+        <img src="${plant.image}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 16px; margin-bottom: 2rem;">
+        <h2 style="font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--primary)">${plant.viName}</h2>
+        <p style="font-style: italic; font-size: 1.2rem; margin: 0.5rem 0;">${plant.latinName}</p>
+        <p style="color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.9rem; margin-bottom: 1.5rem;">${plant.family}</p>
+        <div style="border-top: 1px solid #eee; padding-top: 1.5rem;">
+            <h4 style="margin-bottom: 0.5rem;">Công dụng & Đặc điểm:</h4>
+            <p style="line-height: 1.6; color: var(--text-muted)">${plant.desc}</p>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('plant-modal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('plant-modal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+
+// 10. Utility Functions
 function updateProgress() {
     const percentage = (learnedPlants.length / plantData.length) * 100;
     progressFill.style.width = `${percentage}%`;
