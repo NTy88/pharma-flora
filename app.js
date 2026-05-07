@@ -214,13 +214,13 @@ function nextQuestion() {
     }
 
     if (activeType === 'latin-vi') {
-        questionText = `Tên tiếng Việt của <br><b style="font-style: italic; color: var(--primary)">${randomPlant.latinName}</b> là gì?`;
+        questionText = `Tên tiếng Việt của dược liệu <br><span style="font-style: italic; font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--primary); display: block; margin: 10px 0;">${randomPlant.latinName}</span> là gì?`;
         getOptionLabel = (p) => p.viName;
     } else if (activeType === 'vi-latin') {
-        questionText = `Tên khoa học của <br><b>${randomPlant.viName}</b> là gì?`;
+        questionText = `Tên khoa học của dược liệu <br><span style="font-weight: 700; font-size: 2.2rem; color: var(--text-dark); display: block; margin: 10px 0;">${randomPlant.viName}</span> là gì?`;
         getOptionLabel = (p) => p.latinName;
     } else if (activeType === 'family') {
-        questionText = `Dược liệu <b>${randomPlant.viName}</b> thuộc Họ nào?`;
+        questionText = `Dược liệu <span style="font-weight: 700; color: var(--primary)">${randomPlant.viName}</span> <br>thuộc <span style="text-decoration: underline; color: var(--primary-light)">Họ thực vật</span> nào?`;
         getOptionLabel = (p) => p.family;
     }
 
