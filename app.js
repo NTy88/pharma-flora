@@ -118,6 +118,7 @@ function renderFlashcards() {
     viewDesc.innerText = "Nhấn vào thẻ để lật xem tên khoa học và thông tin chi tiết.";
     
     const plant = plantData[currentFlashcardIndex];
+    const isLearned = learnedPlants.includes(plant.id);
     
     mainView.innerHTML = `
         <div class="flashcard-container">
@@ -126,6 +127,7 @@ function renderFlashcards() {
                     <img src="${plant.image}" alt="${plant.viName}" class="card-img">
                     <h2 class="card-vi">${plant.viName}</h2>
                     <p style="color: var(--text-muted); margin-top: 10px;">(Nhấn để lật)</p>
+                    ${isLearned ? '<span style="position: absolute; top: 20px; right: 20px; background: #c8e6c9; color: #1b5e20; padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">ĐÃ THUỘC ✨</span>' : ''}
                 </div>
                 <div class="card-face back">
                     <h2 class="card-latin">${plant.latinName}</h2>
@@ -137,7 +139,13 @@ function renderFlashcards() {
             
             <div class="controls" style="display: flex; gap: 1rem;">
                 <button class="option-btn" onclick="prevCard()"><i data-lucide="chevron-left"></i> Trước</button>
-                <button class="option-btn" onclick="markAsLearned(${plant.id})" style="background: var(--primary); color: white">Đã thuộc</button>
+                
+                <button class="option-btn" 
+                    onclick="toggleLearned(${plant.id})" 
+                    style="background: ${isLearned ? '#ffb74d' : 'var(--primary)'}; color: white; min-width: 140px;">
+                    ${isLearned ? '<i data-lucide="rotate-ccw"></i> Học lại' : '<i data-lucide="check"></i> Đã thuộc'}
+                </button>
+
                 <button class="option-btn" onclick="nextCard()">Tiếp <i data-lucide="chevron-right"></i></button>
             </div>
         </div>
@@ -148,6 +156,19 @@ function renderFlashcards() {
     });
     
     lucide.createIcons();
+}
+
+function toggleLearned(id) {
+    if (learnedPlants.includes(id)) {
+        // Bỏ thuộc
+        learnedPlants = learnedPlants.filter(item => item !== id);
+    } else {
+        // Đánh dấu thuộc
+        learnedPlants.push(id);
+    }
+    localStorage.setItem('learnedPlants', JSON.stringify(learnedPlants));
+    updateProgress();
+    renderFlashcards(); // Cập nhật lại giao diện ngay lập tức
 }
 
 function renderQuizMenu() {
